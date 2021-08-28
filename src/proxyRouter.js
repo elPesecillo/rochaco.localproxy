@@ -11,6 +11,12 @@ const map = {
       "^.+apiServices": "",
     },
   },
+  "/apiPayments": {
+    target: `${process.env.PAYMENTS_API}`,
+    pathRewrite: {
+      "^.+apiPayments": "",
+    },
+  },
 };
 
 module.exports = map;
