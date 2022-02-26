@@ -23,6 +23,12 @@ const map = {
       "^.+apiSurveys": "",
     },
   },
+  "/apiSpaces": {
+    target: `${process.env.SPACES_API}`,
+    pathRewrite: {
+      "^.+apiSpaces": "",
+    },
+  },
 };
 
 module.exports = map;
