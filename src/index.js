@@ -1,19 +1,22 @@
 const express = require("express");
 const request = require("request");
 const cors = require("cors");
+
 const app = express();
 require("dotenv").config();
 require("@babel/polyfill");
 const map = require("./proxyRouter");
 const authorization = require("./authorization");
+const { IsAutomatedPath } = require("./authorization/automatedPaths");
 
 const getMap = (url) => {
   const proxyMap = map;
   const urlParts = url.split("/");
   let foundMap = null;
-  for (let i = 0; i <= urlParts.length; i++) {
+  for (let i = 0; i <= urlParts.length; i += 1) {
     if (!foundMap) {
-      let innerArray = Array.apply(null, {
+      // eslint-disable-next-line prefer-spread
+      const innerArray = Array.apply(null, {
         length: i + 1,
       }).map(Function.call, Number);
       let uri = "";
@@ -33,7 +36,8 @@ const addApiCodeParameter = (path, code) => {
     }
     return `${path}?code=${code}`;
   } catch (err) {
-    console.log(err);
+    // eslint-disable-next-line no-console
+    console.error("Error adding api code parameter #%d", err);
     return path;
   }
 };
@@ -51,32 +55,42 @@ const rewriteURL = (protocol, host, url) => {
       replaced = addApiCodeParameter(replaced, urlMap.code);
     }
     return `${urlMap.target}${replaced}`;
-  } else return completeUrl;
+  }
+  return completeUrl;
 };
 
 app.use(cors());
-app.use("/testConfig", async function (req, res) {
-  let secApi = process.env.MOBILE_SECURITY_API;
-  let secApiCode = process.env.MOBILE_SECURITY_API_CODE;
+app.use("/testConfig", async (req, res) => {
+  const secApi = process.env.MOBILE_SECURITY_API;
+  const secApiCode = process.env.MOBILE_SECURITY_API_CODE;
   res.json({
     test: "hello",
+    secApi,
+    secApiCode,
   });
 });
 
-app.use("/", async function (req, res) {
+app.use("/", async (req, res) => {
   try {
     const url = rewriteURL(req.protocol, req.get("Host"), req.url);
-    const authToken = req.headers["authorization"];
+    const authToken = req.headers.authorization;
+    const macAddress = req.headers["x-mac-address"];
     const validToken = await authorization.validateAuthorization(
       authToken,
-      req.url
+      req.url,
+      macAddress
     );
+    if (IsAutomatedPath(req.url, macAddress)) {
+      req.headers["api-key"] = process.env.PROTECTED_API_KEY;
+    }
     if (validToken) {
+      // eslint-disable-next-line no-console
       console.log("request redirected to: ", url);
       req
         .pipe(
-          request({ url: url }, (error, response, body) => {
+          request({ url }, (error) => {
             if (error) {
+              // eslint-disable-next-line no-console
               console.log(
                 `An error occurs in the following url: ${url}: `,
                 error
@@ -102,7 +116,7 @@ app.use("/", async function (req, res) {
     }
   } catch (ex) {
     req.res.status(500).json({
-      exception: ex,
+      exception: ex?.message || "unknown error occurred",
     });
   }
 });
