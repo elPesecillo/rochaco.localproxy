@@ -2,13 +2,9 @@ const jwt = require("jsonwebtoken");
 const dayjs = require("dayjs");
 const openPaths = require("./publicPaths");
 const automatedPaths = require("./automatedPaths");
+const common = require("../utils/common");
 
 const { JWT_SECRET } = process.env;
-
-const validateExpDate = function (expDate) {
-  const currentTime = dayjs().unix();
-  return expDate > currentTime;
-};
 
 const validateAuthorizationToken = (token) =>
   new Promise((resolve, reject) => {
@@ -16,7 +12,7 @@ const validateAuthorizationToken = (token) =>
     try {
       jwt.verify(token, JWT_SECRET, (err, decoded) => {
         if (decoded) {
-          if (validateExpDate(decoded.exp)) {
+          if (common.ValidateExpDate(decoded.exp)) {
             isValid = true;
           }
         }
@@ -46,6 +42,16 @@ const validateAuthorization = async (authToken, path, macAddress) => {
   return false;
 };
 
+const GeneratePartnerToken = (partner, minutesToExpire = 44640) => {
+  const expDate = dayjs().add(minutesToExpire, "minute").unix();
+  const token = jwt.sign(
+    { partner, exp: expDate },
+    process.env.JWT_PARTNER_SECRET
+  );
+  return token;
+};
+
 module.exports = {
   validateAuthorization,
+  GeneratePartnerToken,
 };

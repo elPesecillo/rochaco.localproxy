@@ -8,6 +8,7 @@ require("@babel/polyfill");
 const map = require("./proxyRouter");
 const authorization = require("./authorization");
 const { IsAutomatedPath } = require("./authorization/automatedPaths");
+const { ValidatePartnerPath } = require("./authorization/partnerPaths");
 
 const getMap = (url) => {
   const proxyMap = map;
@@ -70,20 +71,40 @@ app.use("/testConfig", async (req, res) => {
   });
 });
 
+app.use("/generatePartnerToken", async (req, res) => {
+  const apiKey = req.headers["api-key"];
+  if (apiKey === process.env.PROTECTED_API_KEY) {
+    const { partner, minutesToExpire } = req.query;
+    const token = authorization.GeneratePartnerToken(partner, minutesToExpire);
+    res.json({
+      token,
+    });
+  } else {
+    res.status(401).send("Unauthorized");
+  }
+});
+
 app.use("/", async (req, res) => {
   try {
     const url = rewriteURL(req.protocol, req.get("Host"), req.url);
     const authToken = req.headers.authorization;
     const macAddress = req.headers["x-mac-address"];
+    const partnerKey = req.headers["x-partner-key"];
     const validToken = await authorization.validateAuthorization(
       authToken,
       req.url,
       macAddress
     );
-    if (IsAutomatedPath(req.url, macAddress)) {
+    let validPartnerToken = false;
+
+    if (partnerKey) {
+      validPartnerToken = await ValidatePartnerPath(req.url, partnerKey);
+    }
+
+    if (IsAutomatedPath(req.url, macAddress) || validPartnerToken) {
       req.headers["api-key"] = process.env.PROTECTED_API_KEY;
     }
-    if (validToken) {
+    if (validToken || validPartnerToken) {
       // eslint-disable-next-line no-console
       console.log("request redirected to: ", url);
       req
