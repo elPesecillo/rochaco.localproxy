@@ -3,7 +3,12 @@ const common = require("../utils/common");
 
 const { JWT_PARTNER_SECRET } = process.env;
 
-const partnerPaths = ["/apiAdmin/partner/getRFs", "/apiAdmin/partner/setRFs"];
+const partnerPaths = [
+  "/apiAdmin/partner/getRFs",
+  "/apiAdmin/partner/getAllRFs",
+  "/apiAdmin/partner/setRFs",
+  "/apiAdmin/partner/setAllRFs",
+];
 
 const isPartnerPath = (path) => partnerPaths.some((p) => path.startsWith(p));
 
